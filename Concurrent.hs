@@ -46,16 +46,17 @@ instance Monad m => Functor (ConcurrentT m) where
 
 instance Monad m => Monad (ConcurrentT m) where
     return = ConcurrentT . FreeT . return . Pure
+    -- serialize actions in the Monad
     ConcurrentT (FreeT m) >>= k = ConcurrentT . FreeT $ do
-        a <- m -- serialize actions in the Monad
+        a <- m
         case a of
             Pure a' -> runFreeT . getConcurrentT $ k a'
             Free r  -> return . Free $ fmap (>>= getConcurrentT . k) r
 
 instance MonadBaseControl IO m => Applicative (ConcurrentT m) where
     pure = return
+    -- run actions concurrently in the Applicative
     ConcurrentT f <*> ConcurrentT a =
-        -- run actions concurrently in the Applicative
         ConcurrentT $ withAsync a $ (f <*>) . wait
 
 instance MonadTrans ConcurrentT where
